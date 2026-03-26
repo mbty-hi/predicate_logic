@@ -361,9 +361,9 @@
           <div class="rule pseudo-button" onclick='apply_rule("DNE (classical)", dne)'>DNE</div>
           <div class="rule pseudo-button" onclick='apply_rule("⊥-elim", false_elim)'>⊥-elim/RAA</div>
           <div class="rule pseudo-button" onclick='apply_rule_with_arg("→-elim", "Implication condition:", impl_elim)'>→-elim</div>
-          <!-- TODO doublecheck, mind bound occurrences -->
-          <div class="rule pseudo-button" onclick='apply_rule("∀-elim", impl_elim)'>∀-elim</div>
-          <div class="rule pseudo-button" onclick='apply_rule("∃-elim", exists_elim)'>∃-elim</div>
+          <div class="rule pseudo-button" onclick='apply_rule_with_arg("∀-elim", "Universal (e.g. ∀x.P):", forall_elim, forall_elim_validate)'>∀-elim</div>
+          <div class="rule pseudo-button" onclick='apply_rule_with_arg("∃-elim", "Existential (e.g. ∃x.P):", exists_elim, exists_elim_validate)'>∃-elim</div>
+          <div class="rule pseudo-button" onclick='apply_rule_with_arg("=-elim", "Equality (e.g. x = y):", eq_elim, validate_eq_input)'>=-elim</div>
         </div>
       </div>
 

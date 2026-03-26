@@ -142,7 +142,7 @@ p.center {
     font-weight: normal;
     height: 150px;
     margin: 10px;
-    overflow: auto;
+    overflow: hidden;
     padding: 13px;
     width: 150px;
     text-decoration: none;
@@ -389,6 +389,17 @@ p.center {
 
 .gallery-i-wish-i-didnt-have-to-resort-to-this-dirty-hack {
   width: 204px;
+}
+
+.gallery-description {
+  overflow: hidden;
+  flex: 1;
+  min-width: 0;
+}
+
+.gallery-description .expr {
+  white-space: nowrap;
+  display: inline;
 }
 
 .gallery-item:hover {

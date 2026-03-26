@@ -6,8 +6,8 @@
 // * An inductive representation (or the poor man's version thereof, courtesy of JS)
 // * The same sort-of inductive representation serialized as a string
 // * The HTML representation (the node you actually see)
-// HTML nodes actually store the serialized inductive representation of their contents via their
-// `data-expr` attribute.
+//   HTML nodes actually store the serialized inductive representation of their contents via their
+//   `data-expr` attribute.
 
 // DOM nodes
 var proof               = document.getElementById("proof");
@@ -39,20 +39,73 @@ var current_exercise = 0; // overridden when loading persistent data
 const version = 2; // for import/export
 
 
+// Peano axioms are implemented as context-dependent pattern-matching rules
+// (see matches_* functions and apply_axiom_rule)
+
+
+// Axiom pattern matchers (check if focused node matches an axiom instance)
+function matches_add_zero(e) {
+  return e.type === "Eq" && ((e.t1.type === "Add" && e.t1.t2.type === "Zero")
+                          || (e.t2.type === "Add" && e.t2.t2.type === "Zero"));
+}
+function matches_add_succ(e) {
+  return e.type === "Eq" && ((e.t1.type === "Add" && e.t1.t2.type === "Succ")
+                          || (e.t2.type === "Add" && e.t2.t2.type === "Succ"));
+}
+function matches_succ_cancel(e) {
+  return e.type === "Eq" && e.t1.type === "Succ" && e.t2.type === "Succ";
+}
+function matches_mul_zero(e) {
+  return e.type === "Eq" && ((e.t1.type === "Mul" && e.t1.t2.type === "Zero")
+                          || (e.t2.type === "Mul" && e.t2.t2.type === "Zero"));
+}
+function matches_mul_succ(e) {
+  return e.type === "Eq" && ((e.t1.type === "Mul" && e.t1.t2.type === "Succ")
+                          || (e.t2.type === "Mul" && e.t2.t2.type === "Succ"));
+}
+function matches_succ_inj(e) {
+  return e.type === "Eq";
+}
+function matches_zero_neq_succ(e) {
+  return e.type === "Not" && e.e.type === "Eq"
+    && e.e.t1.type === "Succ" && e.e.t2.type === "Zero";
+}
+function matches_lt_zero(e) {
+  return e.type === "Not" && e.e.type === "Lt" && e.e.t2.type === "Zero";
+}
+function matches_lt_succ(e) {
+  return e.type === "Iff" && e.e1.type === "Lt" && e.e1.t2.type === "Succ"
+    && e.e2.type === "Or" && e.e2.e1.type === "Lt" && e.e2.e2.type === "Eq"
+    && expr_equal(e.e1.t1, e.e2.e1.t1) && expr_equal(e.e1.t2.t, e.e2.e1.t2)
+    && expr_equal(e.e1.t1, e.e2.e2.t1) && expr_equal(e.e1.t2.t, e.e2.e2.t2);
+}
+function matches_eq_intro(e) {
+  return e.type === "Eq" && expr_equal(e.t1, e.t2);
+}
+
+
 // Exercises
-const exercise_1 = '{"type":"Impl","e1":{"type":"Var","name":"A"},"e2":{"type":"Impl","e1":{"type":"Var","name":"B"},"e2":{"type":"Var","name":"A"}}}';
-const exercise_2 = '{"type":"Impl","e1":{"type":"False"},"e2":{"type":"Var","name":"A"}}';
-const exercise_3 = '{"type":"Impl","e1":{"type":"Var","name":"A"},"e2":{"type":"Or","e1":{"type":"Var","name":"B"},"e2":{"type":"Var","name":"C"}}}';
-const premises_3 = ['{"type":"Impl","e1":{"type":"Var","name":"A"},"e2":{"type":"Var","name":"B"}}'];
-const exercise_4 = '{"type":"Var","name":"B"}';
-const premises_4 = [
-  '{"type":"Not","e":{"type":"Var","name":"C"}}',
-  '{"type":"Impl","e1":{"type":"Not","e":{"type":"Var","name":"B"}},"e2":{"type":"Var","name":"C"}}',
-];
-const exercise_5 = '{"type":"Not","e":{"type":"And","e1":{"type":"Not","e":{"type":"Var","name":"A"}},"e2":{"type":"Var","name":"B"}}}';
-const premises_5 = ['{"type":"Var","name":"A"}'];
-const exercise_6 = '{"type":"Impl","e1":{"type":"Impl","e1":{"type":"Var","name":"A"},"e2":{"type":"Not","e":{"type":"Var","name":"A"}}},"e2":{"type":"Not","e":{"type":"Var","name":"A"}}}';
-const exercise_7 = '{"type":"Iff","e1":{"type":"Impl","e1":{"type":"Var","name":"A"},"e2":{"type":"Var","name":"B"}},"e2":{"type":"Impl","e1":{"type":"Not","e":{"type":"Var","name":"B"}},"e2":{"type":"Not","e":{"type":"Var","name":"A"}}}}';
+
+// 1. m = n → m = n + 0 (→-intro, add-zero, premise)
+const exercise_1 = '{"type":"Impl","e1":{"type":"Eq","t1":{"type":"Var","name":"m"},"t2":{"type":"Var","name":"n"}},"e2":{"type":"Eq","t1":{"type":"Var","name":"m"},"t2":{"type":"Add","t1":{"type":"Var","name":"n"},"t2":{"type":"Zero"}}}}';
+
+// 2. m = n → n = m (→-intro, =-elim, =-intro)
+const exercise_2 = '{"type":"Impl","e1":{"type":"Eq","t1":{"type":"Var","name":"m"},"t2":{"type":"Var","name":"n"}},"e2":{"type":"Eq","t1":{"type":"Var","name":"n"},"t2":{"type":"Var","name":"m"}}}';
+
+// 3. m = n → ↑m = ↑n (→-intro, =-elim, =-intro)
+const exercise_3 = '{"type":"Impl","e1":{"type":"Eq","t1":{"type":"Var","name":"m"},"t2":{"type":"Var","name":"n"}},"e2":{"type":"Eq","t1":{"type":"Succ","t":{"type":"Var","name":"m"}},"t2":{"type":"Succ","t":{"type":"Var","name":"n"}}}}';
+
+// 4. ∃m. ↑m + ↑0 = ↑↑↑0 (∃-intro, add-succ, ..., add-zero, =-intro)
+const exercise_4 = '{"type":"Exists","bound_var":"m","e":{"type":"Eq","t1":{"type":"Add","t1":{"type":"Succ", "t":{"type":"Var","name":"m"}},"t2":{"type":"Succ","t":{"type":"Zero"}}},"t2":{"type":"Succ","t":{"type":"Succ","t":{"type":"Succ","t":{"type":"Zero"}}}}}}';
+
+// 5. ¬(∀m. m < 0) (¬-intro, →-intro, ¬-elim, ∀-elim, lt-zero)
+const exercise_5 = '{"type":"Not","e":{"type":"Forall","bound_var":"m","e":{"type":"Lt","t1":{"type":"Var","name":"m"},"t2":{"type":"Zero"}}}}';
+
+// 6. ¬(∃m. m < 0) (¬-intro, →-intro, ∃-elim, ∀-intro, ¬-elim, lt-zero)
+const exercise_6 = '{"type":"Not","e":{"type":"Exists","bound_var":"m","e":{"type":"Lt","t1":{"type":"Var","name":"m"},"t2":{"type":"Zero"}}}}';
+
+// 7. m = n → m = n + 0 (→-intro, add-zero, premise)
+const exercise_7 = '{"type":"Impl","e1":{"type":"Eq","t1":{"type":"Var","name":"m"},"t2":{"type":"Var","name":"n"}},"e2":{"type":"Eq","t1":{"type":"Var","name":"m"},"t2":{"type":"Add","t1":{"type":"Zero"},"t2":{"type":"Var","name":"n"}}}}';
 
 function make_exercise(objective, premises) {
   return {objective: objective, premises: premises, save_data: null};
@@ -60,8 +113,8 @@ function make_exercise(objective, premises) {
 
 var exercises_data = [
   make_exercise(exercise_1, []), make_exercise(exercise_2, []),
-  make_exercise(exercise_3, premises_3), make_exercise(exercise_4, premises_4),
-  make_exercise(exercise_5, premises_5), make_exercise(exercise_6, []),
+  make_exercise(exercise_3, []), make_exercise(exercise_4, []),
+  make_exercise(exercise_5, []), make_exercise(exercise_6, []),
   make_exercise(exercise_7, []),
 ];
 
@@ -237,9 +290,21 @@ function save_level_aux(node) {
       case "↔-intro":         return { type: sep.children[1].innerHTML, subactions: gen_subactions() };
       // TODO doublecheck
       case "∀-intro":         return { type: sep.children[1].innerHTML, subactions: gen_subactions() };
-      case "∀-elim":          return { type: sep.children[1].innerHTML, subactions: gen_subactions() };
-      case "∃-intro":         return { type: sep.children[1].innerHTML, subactions: gen_subactions() };
-      case "∃-elim":          return { type: sep.children[1].innerHTML, subactions: gen_subactions() };
+      case "∀-elim":          return { type: sep.children[1].innerHTML, arg: get_nth_above_child_expr(0), subactions: gen_subactions() };
+      case "∃-intro":         return { type: sep.children[1].innerHTML, arg: get_nth_above_child_expr(0), subactions: gen_subactions() };
+      case "∃-elim":          return { type: sep.children[1].innerHTML, arg: get_nth_above_child_expr(0), subactions: gen_subactions() };
+      case "succ-inj":        return { type: sep.children[1].innerHTML, subactions: gen_subactions() };
+      case "zero≠succ":       return { type: sep.children[1].innerHTML, subactions: gen_subactions() };
+      case "add-zero":        return { type: sep.children[1].innerHTML, subactions: gen_subactions() };
+      case "add-succ":        return { type: sep.children[1].innerHTML, subactions: gen_subactions() };
+      case "succ-cancel":    return { type: sep.children[1].innerHTML, subactions: gen_subactions() };
+      case "mul-zero":        return { type: sep.children[1].innerHTML, subactions: gen_subactions() };
+      case "mul-succ":        return { type: sep.children[1].innerHTML, subactions: gen_subactions() };
+      case "lt-zero":         return { type: sep.children[1].innerHTML, subactions: gen_subactions() };
+      case "lt-succ":         return { type: sep.children[1].innerHTML, subactions: gen_subactions() };
+      case "induction":       return { type: sep.children[1].innerHTML, subactions: gen_subactions() };
+      case "=-intro":         return { type: sep.children[1].innerHTML, subactions: gen_subactions() };
+      case "=-elim":          return { type: sep.children[1].innerHTML, arg: get_nth_above_child_expr(0), subactions: gen_subactions() };
     }
   } else {
     return { type: "done" };
@@ -258,20 +323,33 @@ function rebuild_level_aux(actions) {
   function is_legal_move(expr, move, arg) { // Never trust students
     let legal_moves = [
       "↔-elim-l", "↔-elim-r", "∧-elim-l", "∧-elim-r", "∨-elim", "DNE (classical)", "⊥-elim",
-      "→-elim", "∀-elim", "∃-elim"
+      "→-elim", "∀-elim", "∃-elim",
+      "=-elim"
     ];
 
     switch (expr.type) {
       case "Var"   : break;
-      case "False" : legal_moves += ["¬-elim"]; break;
-      case "Not"   : legal_moves += ["¬-intro"]; break;
-      case "And"   : legal_moves += ["∧-intro"]; break;
-      case "Or"    : legal_moves += ["∨-intro-l", "∨-intro-r"]; break;
-      case "Impl"  : legal_moves += ["→-intro"]; break;
-      case "Iff"   : legal_moves += ["↔-intro"]; break;
-      case "Forall": legal_moves += ["∀-intro"]; break;
-      case "Exists": legal_moves += ["∃-intro"]; break;
+      case "False" : legal_moves.push("¬-elim"); break;
+      case "Not"   : legal_moves.push("¬-intro"); break;
+      case "And"   : legal_moves.push("∧-intro"); break;
+      case "Or"    : legal_moves.push("∨-intro-l", "∨-intro-r"); break;
+      case "Impl"  : legal_moves.push("→-intro"); break;
+      case "Iff"   : legal_moves.push("↔-intro"); break;
+      case "Forall": legal_moves.push("∀-intro", "induction"); break;
+      case "Exists": legal_moves.push("∃-intro"); break;
     }
+
+    // Axiom rules: only legal when the pattern matches
+    if (matches_eq_intro(expr))      legal_moves.push("=-intro");
+    if (matches_add_zero(expr))      legal_moves.push("add-zero");
+    if (matches_add_succ(expr))      legal_moves.push("add-succ");
+    if (matches_succ_cancel(expr))   legal_moves.push("succ-cancel");
+    if (matches_mul_zero(expr))      legal_moves.push("mul-zero");
+    if (matches_mul_succ(expr))      legal_moves.push("mul-succ");
+    if (matches_succ_inj(expr))      legal_moves.push("succ-inj");
+    if (matches_zero_neq_succ(expr)) legal_moves.push("zero≠succ");
+    if (matches_lt_zero(expr))       legal_moves.push("lt-zero");
+    if (matches_lt_succ(expr))       legal_moves.push("lt-succ");
 
     if (!legal_moves.includes(move)) {
       return false;
@@ -287,6 +365,30 @@ function rebuild_level_aux(actions) {
       }
     } else if (move === "∨-elim") {
       if (!arg || !arg.type || arg.type != "Or") { // This condition is revolting but that's JS
+        return false;
+      } else {
+        return true;
+      }
+    } else if (move === "=-elim") {
+      if (!arg || !arg.type || arg.type != "Eq") {
+        return false;
+      } else {
+        return true;
+      }
+    } else if (move === "∃-elim") {
+      if (!arg || !arg.type || arg.type != "Exists") {
+        return false;
+      } else {
+        return true;
+      }
+    } else if (move === "∀-elim") {
+      if (!arg || !arg.type || arg.type != "Forall") {
+        return false;
+      } else {
+        return true;
+      }
+    } else if (move === "∃-intro") {
+      if (!arg) {
         return false;
       } else {
         return true;
@@ -313,7 +415,7 @@ function rebuild_level_aux(actions) {
   if (actions.type == "done" || focus.known) { return; }
   if (
     actions.type
-    && !is_legal_move(JSON.parse(focus.getAttribute("data-expr")), actions.type, actions.arg)
+    && !is_legal_move(JSON.parse(focus.getAttribute("data-expr")), actions.type, actions.arg ? JSON.parse(actions.arg) : null)
   ) {
     rebuild_level_failed = true;
     return;
@@ -331,15 +433,29 @@ function rebuild_level_aux(actions) {
     case "→-elim":          apply_rule("→-elim", impl_elim, JSON.parse(actions.arg)); rebuild_children(); break;
     case "¬-elim":          apply_rule("¬-elim", not_elim, JSON.parse(actions.arg)); rebuild_children(); break;
     // TODO
-    case "∀-elim":          apply_rule("∀-elim", forall_elim); rebuild_children(); break;
-    case "∃-elim":          apply_rule("∃-elim", exists_elim); rebuild_children(); break;
+    case "∀-elim":          apply_rule("∀-elim", forall_elim, JSON.parse(actions.arg)); rebuild_children(); break;
+    case "∃-elim":          apply_rule("∃-elim", exists_elim, JSON.parse(actions.arg)); rebuild_children(); break;
     case "¬-intro":         apply_rule("¬-intro", not_intro); rebuild_children(); break;
     case "∧-intro":         apply_rule("∧-intro", and_intro); rebuild_children(); break;
     case "∨-intro-l":       apply_rule("∨-intro-l", or_intro_l); rebuild_children(); break;
     case "∨-intro-r":       apply_rule("∨-intro-r", or_intro_r); rebuild_children(); break;
+    case "→-intro":         apply_rule("→-intro", impl_intro); rebuild_children(); break;
+    case "↔-intro":         apply_rule("↔-intro", iff_intro); rebuild_children(); break;
     // TODO
-    case "∀-intro":         apply_rule("∀-intro", forall_intro); rebuild_children(); break;
-    case "∃-intro":         apply_rule("∃-intro", exists_intro); rebuild_children(); break;
+    case "∀-intro":         apply_rule("∀-intro", forall_intro, true); rebuild_children(); break;
+    case "∃-intro":         apply_rule("∃-intro", exists_intro_rebuild, JSON.parse(actions.arg)); rebuild_children(); break;
+    case "succ-inj":        apply_rule("succ-inj", succ_inj_rule); rebuild_children(); break;
+    case "zero≠succ":       apply_axiom_rule("zero≠succ"); break;
+    case "add-zero":        apply_rule("add-zero", add_zero_rule); rebuild_children(); break;
+    case "add-succ":        apply_rule("add-succ", add_succ_rule); rebuild_children(); break;
+    case "succ-cancel":    apply_rule("succ-cancel", succ_cancel_rule); rebuild_children(); break;
+    case "mul-zero":        apply_rule("mul-zero", mul_zero_rule); rebuild_children(); break;
+    case "mul-succ":        apply_rule("mul-succ", mul_succ_rule); rebuild_children(); break;
+    case "lt-zero":         apply_axiom_rule("lt-zero"); break;
+    case "lt-succ":         apply_axiom_rule("lt-succ"); break;
+    case "induction":       apply_rule("induction", peano_induction); rebuild_children(); break;
+    case "=-intro":         apply_axiom_rule("=-intro"); break;
+    case "=-elim":          apply_rule("=-elim", eq_elim, JSON.parse(actions.arg)); rebuild_children(); break;
     case "done": break;
     default: return null;
   }
@@ -542,8 +658,8 @@ const Expression = { // Expression constructors
   EIff:    (e1, e2)  => ({ type: "Iff", e1, e2 }),
   ENot:    (e)       => ({ type: "Not", e }),
   EFalse:  ()        => ({ type: "False" }),
-  EForall: (name, e) => ({ type: "Forall", name, e }),
-  EExists: (name, e) => ({ type: "Exists", name, e }),
+  EForall: (bound_var, e) => ({ type: "Forall", bound_var, e }),
+  EExists: (bound_var, e) => ({ type: "Exists", bound_var, e }),
   TLt:     (t1, t2)  => ({ type: "Lt", t1, t2 }),
   TEq:     (t1, t2)  => ({ type: "Eq", t1, t2 }),
   TAdd:    (t1, t2)  => ({ type: "Add", t1, t2 }),
@@ -691,27 +807,30 @@ function parse_input_field() {
     } else if (next_token.type === '(') {
       pos++;
       const e = parse_form();
-      next_token = tokens[pos];
-      if (consume(')')) {
-        return e;
+      if (!e || !consume(')')) {
+        return null;
       }
+      return e;
     } else if (next_token.type === Connective.FORALL || next_token.type === Connective.EXISTS) {
       const quantifier = next_token.type;
       pos++;
       next_token = tokens[pos];
-      if (next_token && next_token.type === 'V') {
-        const bound_var = next_token.value;
-        pos++;
-        next_token = tokens[pos];
-        if (next_token && next_token.type === '.') {
-          pos++;
-          const e = parse_form();
-          if (quantifier == Connective.FORALL) {
-            return Expression.EForall(bound_var, e);
-          } else {
-            return Expression.EExists(bound_var, e);
-          }
-        }
+      if (!next_token || next_token.type !== 'V') {
+        return null;
+      }
+      const bound_var = next_token.value;
+      pos++;
+      if (!consume(Connective.DOT)) {
+        return null;
+      }
+      const e = parse_form();
+      if (!e) {
+        return null;
+      }
+      if (quantifier === Connective.FORALL) {
+        return Expression.EForall(bound_var, e);
+      } else {
+        return Expression.EExists(bound_var, e);
       }
     } else {
       return parse_rel();
@@ -731,6 +850,7 @@ function parse_input_field() {
       const t2 = parse_add();
       return Expression.TLt(t1, t2);
     }
+    return t1;
   }
 
   function parse_add() { return parse_binary(parse_mul , Connective.ADD, Expression.TAdd); }
@@ -751,13 +871,14 @@ function parse_input_field() {
       return Expression.TZero();
     } else if (consume('(')) {
       let t = parse_add();
-      if (!t) { return null }
+      if (!t) { return null; }
       if (!consume(')')) { return null; }
       return t;
     } else if (tokens[pos] && tokens[pos].type == 'V') {
       ++pos;
       return Expression.TVar(tokens[pos - 1].value);
     }
+    return null;
   }
 
   let tree = parse_form(tokens);
@@ -836,10 +957,20 @@ function set_separator(name) {
   sep.innerHTML = `<div class=sep-bar></div><div class=sep-name>${name}</div>`;
 }
 
+function apply_axiom_rule(name) {
+  clear_above(focus);
+  set_separator(name);
+  focus.classList.add("known");
+  update_status_of_lower_tree(focus);
+  update_contextual_actions();
+  check_whether_proof_done();
+}
+
 function apply_rule(name, rule_function, arg = null) {
   clear_above(focus);
   let expr = JSON.parse(focus.getAttribute("data-expr"));
-  rule_function(expr, arg);
+  let result = rule_function(expr, arg);
+  if (result === false) { return; } // Rule rejected (e.g. side condition failed)
   set_separator(name);
   update_status_of_lower_tree(focus);
   set_focus(focus.parentNode.parentNode.children[0].children[0].children[2].children[0]);
@@ -861,7 +992,7 @@ function apply_rule_with_arg_callback(name, input_callback, additional_verif = n
 }
 
 function apply_rule_with_arg(name, arg_input_string, input_callback, additional_verif = null) {
-  open_input_panel(arg_input_string, () => apply_rule_with_arg_callback(name, input_callback));
+  open_input_panel(arg_input_string, () => apply_rule_with_arg_callback(name, input_callback, additional_verif));
 }
 
 function validate_or_input(parse_res) {
@@ -871,10 +1002,21 @@ function validate_or_input(parse_res) {
   }
 }
 
+
+
+function validate_eq_input(parse_res) {
+  if (parse_res.type === "Eq") {
+    return true;
+  }
+  input_panel_error.innerHTML = "Type error: expected an equality (e.g. x = y)";
+  return false;
+}
+
 function is_known(expr, node) {
+  let parsed = JSON.parse(expr);
   for (let i = 0; i < premises_holder.children.length; i++) {
     let p = premises_holder.children[i];
-    if (p.getAttribute("data-expr") === expr) {
+    if (expr_equal(parsed, JSON.parse(p.getAttribute("data-expr")))) {
       return p;
     }
   }
@@ -883,11 +1025,15 @@ function is_known(expr, node) {
 }
 
 function update_known(node) {
-  if (node.classList.contains("known")) {
-    let known_cause = is_known(node.getAttribute("data-expr"), node);
-    if (known_cause) {
-      node.known = known_cause;
-    }
+  let known_cause = is_known(node.getAttribute("data-expr"), node);
+  if (known_cause) {
+    node.known = known_cause;
+    node.classList.add("known");
+    update_status_of_lower_tree(node);
+  } else if (!node.parentNode.parentNode.children[1].innerHTML) {
+    // Only un-mark leaf nodes (no rule applied above)
+    node.known = null;
+    node.classList.remove("known");
   }
 }
 
@@ -920,40 +1066,136 @@ function add_hyp(tree) {
   return new_hyp;
 }
 
-// Called a bit too often, overkill (but performance is not an issue so who cares)
+// Recheck known status of whole proof tree (e.g. after premise changes)
 function recheck_status_of_tree(tree) {
   if (tree.known) {
     tree.known.removeAttribute("id");
   }
   set_focus(tree);
+
+  // Check if this node has proof work above (non-empty separator)
+  let sep = tree.parentNode.parentNode.children[1];
+  let has_proof_above = sep && sep.innerHTML !== "";
+
+  if (has_proof_above) {
+    // Node has a rule applied — check if all children above are known
+    let subtrees = tree.parentNode.parentNode.children[0].children;
+    let success_for_all = true;
+    for (let t of subtrees) {
+      if (!recheck_status_of_tree(t.children[2].children[0])) {
+        success_for_all = false;
+      }
+    }
+    if (success_for_all) {
+      tree.classList.add("known");
+    } else {
+      tree.classList.remove("known");
+    }
+    tree.known = null;
+    return success_for_all;
+  }
+
+  // Leaf node — check if it matches a premise
   let known = is_known(tree.getAttribute("data-expr"), tree);
   if (known) {
     tree.known = known;
-    clear_above(tree);
     tree.classList.add("known");
     return true;
-  }
-  else {
+  } else {
     tree.known = null;
     tree.classList.remove("known");
-  }
-
-  if (!tree.parentNode.parentNode.classList.contains("subtree")) {
     return false;
   }
+}
 
-  let subtrees = tree.parentNode.parentNode.children[0].children;
-  let success_for_all = true;
-  if (subtrees.length === 0) { return false; }
-  for (t of subtrees) {
-    if (!recheck_status_of_tree(t.children[2].children[0])) {
-      success_for_all = false;
+// Structural equality check for expressions/terms
+function expr_equal(a, b) {
+  function go(a, b, env) {
+    if (a.type !== b.type) return false;
+    switch (a.type) {
+      case "False": case "Zero": return true;
+      case "Var":
+        let ma = env.get(a.name), mb = env.get(b.name);
+        if (ma !== undefined || mb !== undefined) return ma === b.name && mb === a.name;
+        return a.name === b.name;
+      case "Not":    return go(a.e, b.e, env);
+      case "Succ":   return go(a.t, b.t, env);
+      case "And": case "Or": case "Impl": case "Iff":
+        return go(a.e1, b.e1, env) && go(a.e2, b.e2, env);
+      case "Eq": case "Lt": case "Add": case "Mul":
+        return go(a.t1, b.t1, env) && go(a.t2, b.t2, env);
+      case "Forall": case "Exists":
+        let env2 = new Map(env);
+        env2.set(a.bound_var, b.bound_var);
+        env2.set(b.bound_var, a.bound_var);
+        return go(a.e, b.e, env2);
+      default: return false;
     }
   }
-  if (success_for_all) {
-    tree.classList.add("known");
+  return go(a, b, new Map());
+}
+
+// Replace all occurrences of `old_term` with `new_term` in `expr` (structural)
+function term_replace(expr, old_term, new_term) {
+  if (expr_equal(expr, old_term)) return new_term;
+  switch (expr.type) {
+    case "False": case "Zero": case "Var": return expr;
+    case "Not":   return { type: "Not", e: term_replace(expr.e, old_term, new_term) };
+    case "Succ":  return { type: "Succ", t: term_replace(expr.t, old_term, new_term) };
+    case "And":   return { type: "And",  e1: term_replace(expr.e1, old_term, new_term), e2: term_replace(expr.e2, old_term, new_term) };
+    case "Or":    return { type: "Or",   e1: term_replace(expr.e1, old_term, new_term), e2: term_replace(expr.e2, old_term, new_term) };
+    case "Impl":  return { type: "Impl", e1: term_replace(expr.e1, old_term, new_term), e2: term_replace(expr.e2, old_term, new_term) };
+    case "Iff":   return { type: "Iff",  e1: term_replace(expr.e1, old_term, new_term), e2: term_replace(expr.e2, old_term, new_term) };
+    case "Eq":    return { type: "Eq",   t1: term_replace(expr.t1, old_term, new_term), t2: term_replace(expr.t2, old_term, new_term) };
+    case "Lt":    return { type: "Lt",   t1: term_replace(expr.t1, old_term, new_term), t2: term_replace(expr.t2, old_term, new_term) };
+    case "Add":   return { type: "Add",  t1: term_replace(expr.t1, old_term, new_term), t2: term_replace(expr.t2, old_term, new_term) };
+    case "Mul":   return { type: "Mul",  t1: term_replace(expr.t1, old_term, new_term), t2: term_replace(expr.t2, old_term, new_term) };
+    case "Forall": case "Exists": {
+      let fv_old = free_vars(old_term), fv_new = free_vars(new_term);
+      // Bound var shadows old_term — can't match inside
+      if (fv_old.has(expr.bound_var)) return expr;
+      // Bound var would capture a free var in new_term — alpha-rename first
+      let e = expr;
+      if (fv_new.has(e.bound_var)) {
+        let avoid = new Set([...fv_old, ...fv_new, ...free_vars(e.e)]);
+        let fresh = fresh_var(avoid);
+        e = { type: e.type, bound_var: fresh, e: substitute(e.e, e.bound_var, { type: "Var", name: fresh }) };
+      }
+      return { type: e.type, bound_var: e.bound_var, e: term_replace(e.e, old_term, new_term) };
+    }
+    default: return expr;
   }
-  return success_for_all;
+}
+
+// Substitute free occurrences of `name` with `term` in `expr`
+function substitute(expr, name, term) {
+  switch (expr.type) {
+    case "False": return expr;
+    case "Var":   return expr.name === name ? term : expr;
+    case "Not":   return { type: "Not", e: substitute(expr.e, name, term) };
+    case "And":   return { type: "And", e1: substitute(expr.e1, name, term), e2: substitute(expr.e2, name, term) };
+    case "Or":    return { type: "Or",  e1: substitute(expr.e1, name, term), e2: substitute(expr.e2, name, term) };
+    case "Impl":  return { type: "Impl", e1: substitute(expr.e1, name, term), e2: substitute(expr.e2, name, term) };
+    case "Iff":   return { type: "Iff", e1: substitute(expr.e1, name, term), e2: substitute(expr.e2, name, term) };
+    case "Forall": case "Exists": {
+      if (expr.bound_var === name) return expr; // shadowed
+      // Bound var would capture a free var in term — alpha-rename first
+      let e = expr;
+      if (free_vars(term).has(e.bound_var)) {
+        let avoid = new Set([...free_vars(term), ...free_vars(e.e), name]);
+        let fresh = fresh_var(avoid);
+        e = { type: e.type, bound_var: fresh, e: substitute(e.e, e.bound_var, { type: "Var", name: fresh }) };
+      }
+      return { type: e.type, bound_var: e.bound_var, e: substitute(e.e, name, term) };
+    }
+    case "Eq":    return { type: "Eq",  t1: substitute(expr.t1, name, term), t2: substitute(expr.t2, name, term) };
+    case "Lt":    return { type: "Lt",  t1: substitute(expr.t1, name, term), t2: substitute(expr.t2, name, term) };
+    case "Add":   return { type: "Add", t1: substitute(expr.t1, name, term), t2: substitute(expr.t2, name, term) };
+    case "Mul":   return { type: "Mul", t1: substitute(expr.t1, name, term), t2: substitute(expr.t2, name, term) };
+    case "Succ":  return { type: "Succ", t: substitute(expr.t, name, term) };
+    case "Zero":  return expr;
+    default: return expr;
+  }
 }
 
 function impl_intro(expr) { add_hyp(expr.e2); }
@@ -965,6 +1207,137 @@ function iff_intro(expr) {
   add_hyp({"type": "Impl", "e1": expr.e2, "e2": expr.e1});
 }
 function not_intro(expr) { add_hyp({"type": "Impl", "e1": expr.e, "e2": {"type": "False"}}); }
+// ∃-intro: goal is ∃x.P(x), user provides witness t, hypothesis is P(t/x)
+// Collect free variables in an expression
+function free_vars(expr) {
+  switch (expr.type) {
+    case "False": case "Zero": return new Set();
+    case "Var":    return new Set([expr.name]);
+    case "Not":    return free_vars(expr.e);
+    case "Succ":   return free_vars(expr.t);
+    case "And": case "Or": case "Impl": case "Iff":
+      return new Set([...free_vars(expr.e1), ...free_vars(expr.e2)]);
+    case "Eq": case "Lt": case "Add": case "Mul":
+      return new Set([...free_vars(expr.t1), ...free_vars(expr.t2)]);
+    case "Forall": case "Exists": {
+      let fv = free_vars(expr.e);
+      fv.delete(expr.bound_var);
+      return fv;
+    }
+    default: return new Set();
+  }
+}
+
+function fresh_var(avoid) {
+  let names = "abcdefghijklmnopqrstuvwxyz";
+  for (let round = 0; ; round++) {
+    let suffix = round === 0 ? "" : String(round);
+    for (let c of names) {
+      let candidate = c + suffix;
+      if (!avoid.has(candidate)) return candidate;
+    }
+  }
+}
+
+function flash_rule_error(msg) {
+  done_message.style.visibility = "visible";
+  done_message.style.color = "var(--red)";
+  done_message.textContent = msg;
+  setTimeout(() => {
+    done_message.style.color = "var(--green)";
+    done_message.textContent = "Branch done";
+    done_message.style.visibility = "hidden";
+    // Restore if the branch is actually done
+    if (focus.classList.contains("known")) {
+      done_message.style.visibility = "visible";
+    }
+  }, 2000);
+}
+
+// ∃-elim: user provides ∃x.P(x), adds ∃x.P(x) and ∀x.(P(x) → C) as hypotheses
+function exists_elim(expr, arg) {
+  let v = arg.bound_var;
+  if (free_vars(expr).has(v)) {
+    flash_rule_error(`∃-elim: "${v}" is free in the goal`);
+    return false;
+  }
+  for (let i = 0; i < premises_holder.children.length; i++) {
+    let p = JSON.parse(premises_holder.children[i].getAttribute("data-expr"));
+    if (free_vars(p).has(v)) {
+      flash_rule_error(`∃-elim: "${v}" is free in a premise`);
+      return false;
+    }
+  }
+  add_hyp(arg);
+  add_hyp({ type: "Forall", bound_var: v, e: { type: "Impl", e1: arg.e, e2: expr } });
+}
+function exists_elim_validate(parse_res) {
+  if (parse_res.type === "Exists") return true;
+  input_panel_error.innerHTML = "Type error: expected ∃x.P(x)";
+  return false;
+}
+// Check if target is an instance of pattern[var_name := ?] for some term
+function is_instance_of(pattern, target, var_name) {
+  let binding = undefined;
+  function go(p, t) {
+    if (p.type === "Var" && p.name === var_name) {
+      if (binding === undefined) { binding = t; return true; }
+      return expr_equal(binding, t);
+    }
+    if (p.type !== t.type) return false;
+    switch (p.type) {
+      case "False": case "Zero": return true;
+      case "Var":  return p.name === t.name;
+      case "Not":  return go(p.e, t.e);
+      case "Succ": return go(p.t, t.t);
+      case "And": case "Or": case "Impl": case "Iff":
+        return go(p.e1, t.e1) && go(p.e2, t.e2);
+      case "Eq": case "Lt": case "Add": case "Mul":
+        return go(p.t1, t.t1) && go(p.t2, t.t2);
+      case "Forall": case "Exists":
+        if (p.bound_var === var_name) return expr_equal(p, t);
+        if (p.bound_var !== t.bound_var) return false;
+        return go(p.e, t.e);
+      default: return false;
+    }
+  }
+  return go(pattern, target);
+}
+// ∀-elim: user provides ∀x.P(x), goal must be an instance of P
+function forall_elim(expr, arg) {
+  if (!is_instance_of(arg.e, expr, arg.bound_var)) {
+    flash_rule_error(`∀-elim: goal is not an instance of the body`);
+    return false;
+  }
+  add_hyp(arg);
+}
+function forall_elim_validate(parse_res) {
+  if (parse_res.type === "Forall") return true;
+  input_panel_error.innerHTML = "Type error: expected ∀x.P(x)";
+  return false;
+}
+// ∀-intro: goal is ∀x.P(x), hypothesis is P(x)
+// Side condition: bound_var must not be free in any current premise
+function forall_intro(expr, skip_check) {
+  if (!skip_check) {
+    let v = expr.bound_var;
+    for (let i = 0; i < premises_holder.children.length; i++) {
+      let p = JSON.parse(premises_holder.children[i].getAttribute("data-expr"));
+      if (free_vars(p).has(v)) {
+        flash_rule_error(`∀-intro: "${v}" is free in a premise`);
+        return false;
+      }
+    }
+  }
+  add_hyp(expr.e);
+}
+function exists_intro(expr, arg) {
+  add_hyp(substitute(expr.e, expr.bound_var, arg));
+}
+// For rebuild: arg is the pre-computed hypothesis P(t/x)
+function exists_intro_rebuild(expr, arg) {
+  add_hyp(arg);
+}
 function and_elim_l(expr, arg) { add_hyp({"type": "And", "e1": expr, "e2": arg}); }
 function and_elim_r(expr, arg) { add_hyp({"type": "And", "e1": arg, "e2": expr}); }
 function or_elim(expr, arg) {
@@ -991,6 +1364,66 @@ function dne(expr) {
 function not_elim(expr, arg) {
   add_hyp(arg);
   add_hyp({"type": "Not", "e": arg});
+}
+// add-zero: a + 0 = c → a = c, or c = a + 0 → c = a
+function add_zero_rule(expr) {
+  if (expr.t1.type === "Add" && expr.t1.t2.type === "Zero") {
+    add_hyp({ type: "Eq", t1: expr.t1.t1, t2: expr.t2 });
+  } else {
+    add_hyp({ type: "Eq", t1: expr.t1, t2: expr.t2.t1 });
+  }
+}
+// add-succ: a + ↑b = c → ↑(a + b) = c, or c = a + ↑b → c = ↑(a + b)
+function add_succ_rule(expr) {
+  let rewritten = function(side) {
+    return { type: "Succ", t: { type: "Add", t1: side.t1, t2: side.t2.t } };
+  };
+  if (expr.t1.type === "Add" && expr.t1.t2.type === "Succ") {
+    add_hyp({ type: "Eq", t1: rewritten(expr.t1), t2: expr.t2 });
+  } else {
+    add_hyp({ type: "Eq", t1: expr.t1, t2: rewritten(expr.t2) });
+  }
+}
+// succ-inj: goal is a = b, subgoal is ↑a = ↑b
+function succ_inj_rule(expr) {
+  add_hyp({ type: "Eq", t1: { type: "Succ", t: expr.t1 }, t2: { type: "Succ", t: expr.t2 } });
+}
+// succ-cancel: goal is ↑a = ↑b, subgoal is a = b
+function succ_cancel_rule(expr) {
+  add_hyp({ type: "Eq", t1: expr.t1.t, t2: expr.t2.t });
+}
+// mul-zero: a * 0 = c → 0 = c, or c = a * 0 → c = 0
+function mul_zero_rule(expr) {
+  if (expr.t1.type === "Mul" && expr.t1.t2.type === "Zero") {
+    add_hyp({ type: "Eq", t1: { type: "Zero" }, t2: expr.t2 });
+  } else {
+    add_hyp({ type: "Eq", t1: expr.t1, t2: { type: "Zero" } });
+  }
+}
+// mul-succ: a * ↑b = c → (a * b) + a = c, or c = a * ↑b → c = (a * b) + a
+function mul_succ_rule(expr) {
+  let rewritten = function(side) {
+    return { type: "Add", t1: { type: "Mul", t1: side.t1, t2: side.t2.t }, t2: side.t1 };
+  };
+  if (expr.t1.type === "Mul" && expr.t1.t2.type === "Succ") {
+    add_hyp({ type: "Eq", t1: rewritten(expr.t1), t2: expr.t2 });
+  } else {
+    add_hyp({ type: "Eq", t1: expr.t1, t2: rewritten(expr.t2) });
+  }
+}
+// =-elim: user provides equality t1 = t2; hypotheses are t1 = t2 and goal[t2 := t1]
+function eq_elim(expr, arg) {
+  add_hyp(arg);
+  add_hyp(term_replace(expr, arg.t2, arg.t1));
+}
+// Induction on ∀x.P(x): base case P(0), step ∀x.(P(x) → P(↑x))
+function peano_induction(expr) {
+  let v = expr.bound_var;
+  let body = expr.e;
+  let p_zero = substitute(body, v, { type: "Zero" });
+  let p_succ = substitute(body, v, { type: "Succ", t: { type: "Var", name: v } });
+  add_hyp(p_zero);
+  add_hyp({ type: "Forall", bound_var: v, e: { type: "Impl", e1: body, e2: p_succ } });
 }
 
 
@@ -1168,6 +1601,8 @@ function update_contextual_actions() {
   let or_intro_r  = `<div class="rule pseudo-button" onclick='apply_rule("∨-intro-r", or_intro_r)'>∨-intro-r</div>`;
   let not_intro   = `<div class="rule pseudo-button" onclick='apply_rule("¬-intro", not_intro, "Hypothesis:")'>¬-intro</div>`;
   let not_elim    = `<div class="rule pseudo-button" onclick='apply_rule_with_arg("¬-elim", "Hypothesis:", not_elim)'>¬-elim</div>`;
+  let forall_intro = `<div class="rule pseudo-button" onclick='apply_rule("∀-intro", forall_intro)'>∀-intro</div>`;
+  let exists_intro = `<div class="rule pseudo-button" onclick='apply_rule_with_arg("∃-intro", "Witness term:", exists_intro)'>∃-intro</div>`;
 
   if (focus.classList.contains("known")) {
     intro_rules.style.visibility = "hidden";
@@ -1181,15 +1616,34 @@ function update_contextual_actions() {
     done_message.style.visibility = "hidden";
   }
 
-  switch (JSON.parse(focus.getAttribute("data-expr")).type) {
-    case "Var"  : intro_rules_holder.innerHTML = ""; break;
-    case "False": intro_rules_holder.innerHTML = not_elim; break;
-    case "Not"  : intro_rules_holder.innerHTML = not_intro; break;
-    case "And"  : intro_rules_holder.innerHTML = and_intro; break;
-    case "Or"   : intro_rules_holder.innerHTML = or_intro_l + or_intro_r; break;
-    case "Impl" : intro_rules_holder.innerHTML = impl_intro; break;
-    case "Iff"  : intro_rules_holder.innerHTML = iff_intro; break;
+  let expr = JSON.parse(focus.getAttribute("data-expr"));
+  let rules = "";
+
+  // Standard intro rules based on top-level type
+  switch (expr.type) {
+    case "False": rules += not_elim; break;
+    case "Not"  : rules += not_intro; break;
+    case "And"  : rules += and_intro; break;
+    case "Or"   : rules += or_intro_l + or_intro_r; break;
+    case "Impl" : rules += impl_intro; break;
+    case "Iff"  : rules += iff_intro; break;
+    case "Forall": rules += forall_intro + `<div class="rule pseudo-button" onclick='apply_rule("induction", peano_induction)'>induction</div>`; break;
+    case "Exists": rules += exists_intro; break;
   }
+
+  // Axiom rules: shown when the focused node matches the pattern
+  if (matches_eq_intro(expr))       rules += `<div class="rule pseudo-button" onclick='apply_axiom_rule("=-intro")'>=-intro</div>`;
+  if (matches_add_zero(expr))       rules += `<div class="rule pseudo-button" onclick='apply_rule("add-zero", add_zero_rule)'>add-zero</div>`;
+  if (matches_add_succ(expr))       rules += `<div class="rule pseudo-button" onclick='apply_rule("add-succ", add_succ_rule)'>add-succ</div>`;
+  if (matches_succ_cancel(expr))   rules += `<div class="rule pseudo-button" onclick='apply_rule("succ-cancel", succ_cancel_rule)'>succ-cancel</div>`;
+  if (matches_mul_zero(expr))       rules += `<div class="rule pseudo-button" onclick='apply_rule("mul-zero", mul_zero_rule)'>mul-zero</div>`;
+  if (matches_mul_succ(expr))       rules += `<div class="rule pseudo-button" onclick='apply_rule("mul-succ", mul_succ_rule)'>mul-succ</div>`;
+  if (matches_succ_inj(expr))       rules += `<div class="rule pseudo-button" onclick='apply_rule("succ-inj", succ_inj_rule)'>succ-inj</div>`;
+  if (matches_zero_neq_succ(expr))  rules += `<div class="rule pseudo-button" onclick='apply_axiom_rule("zero≠succ")'>zero≠succ</div>`;
+  if (matches_lt_zero(expr))        rules += `<div class="rule pseudo-button" onclick='apply_axiom_rule("lt-zero")'>lt-zero</div>`;
+  if (matches_lt_succ(expr))        rules += `<div class="rule pseudo-button" onclick='apply_axiom_rule("lt-succ")'>lt-succ</div>`;
+
+  intro_rules_holder.innerHTML = rules;
 
   if (proof.children[0].children[2].children[0] === focus) {
     change_button.style.visibility = "visible";
