@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Playground</title>
+  <link rel="stylesheet" type="text/css" href="style.css">
+  <link rel="shortcut icon" type="image/ico" href="favicon.ico">
+  <script src="script.js" defer></script>
+</head>
+
+<!-- I hope you like flexboxes and inline styling -->
+
+<body>
+<input type="file" id="file-input" style="display: none;"/>
+<div
+  id=content style="min-height: 100%; display:flex; flex-direction: column; margin-bottom: 10px;"
+>
+  <!-- Help panel, hidden by default -->
+  <div id=help-panel style="display: none;" onclick="close_help_panel_click_handler(event, this)">
+    <div
+      style="font-size: 200%; position: absolute; top: 20px; right: 20px; cursor: pointer;"
+      onclick="close_help_panel()">&times;
+    </div>
+    <div class=center style="width: 100%; center; max-width: 850px;">
+      <h2>How this works</h2>
+      <p style="margin-bottom: 0;">
+      There are seven exercises to solve (use the "Select exercise" button on the top left to check
+      your progress). An exercise is made of two elements:
+      </p>
+      <ul style="margin-top: 8px;">
+        <li>A (possibly empty) set of premises</li>
+        <li>A proposition</li>
+      </ul>
+
+      <p>
+      Your job is to prove propositions by building proof trees for them. To set the focus to a
+      specific node in your tree, simply click on it (there is always one focused node and it is
+      outlined in bold). You can then apply any of the rules compatible with that node using the
+      buttons in the other panel. Note that some of the rules can be applied to any node (e.g.,
+      ⊥-elim), whereas others are context-dependent (e.g., the last step in a proof tree for A ∧ B
+      can not be ∨-intro-l). The system only shows rules compatible with the node under focus.
+      If that node is a leaf, applying a rule will turn it into a branch node with one leaf per
+      premise of the corresponding natural deduction inference rule. Otherwise, the branch node gets
+      turned into a leaf node (the system clears everything above it) and the rule gets applied to
+      it.
+      </p>
+
+      <p>
+      Different rules act in different ways. Some of them expect an user-provided expression: in
+      that case, just input something sensible in the panel that automatically opens. Some (such as
+      →-intro) implicitly introduce local premises that can be used in the rest of the branch. Use
+      an external reference for the moral justification as to why the inference rules behave the way
+      they do.
+      </p>
+
+      <p>
+      <b style="color: var(--red); margin-bottom: 0">Warning:</b> the rules implemented here are a
+      slight departure from those given by Van Dalen, though the resulting systems are equivalent
+      (i.e., anything that can be proven with Van Dalen's rules can be proven here, and vice versa;
+      proving that is an optional exercise left to the reader). The differences are:
+      </p>
+      <ul style="margin-top: 8px;">
+        <li>
+          The classical logic inference rule DNE (double-negation elimination) is provided
+        </li>
+        <li>
+          Several rules (such as ∨-elim) work with explicit implications instead of introducing
+          branch-local hypotheses; if what this means is not clear to you, just click the button and
+          see how it differs from what the book says. To get back to the version of the book, just
+          use an explicit →-intro: you can view Van Dalen's version as syntactic sugar for that
+        </li>
+        <li>
+          No distinction is made between ⊥-elim and RAA (reductio ad absurdum): ⊥-elim behaves like
+          the more powerful RAA (this does not change much in practice; you just get a hypothesis
+          for free in the ⊥-elim case)
+        </li>
+      </ul>
+
+      <p>
+      I will change the system so as to make it match the book after submissions (I don't want to
+      make breaking changes while people are still working on this).
+      </p>
+
+      <p>
+      A leaf is automatically marked as done by the system whenever a matching premise or a local
+      hypothesis (as implicitly introduced by →-intro or RAA) is found. Leaves that are done turn
+      green. Branch nodes such that all the nodes sitting directly atop them are done are themselve
+      marked as done and turn green. Focusing a done leaf nodes highlights a justification for it
+      being done in yellow: either a premise or a node/subexpression lower in the same branch. The
+      whole exercise is done when the root node is marked as done, in which case the entire
+      background turns green.
+      </p>
+
+      <p>
+      If you get stuck, I advise to do proofs with pen-and-paper first and to port them to this
+      system later. Also remember that you are welcome to submit pen-and-paper proofs.
+      </p>
+    </div>
+  </div>
+
+  <!-- Level selection panel, hidden by default -->
+  <div
+    id=level-panel style="display: none;" onclick="close_level_panel_click_handler(event, this)"
+  >
+    <div
+      style="font-size: 200%; position: absolute; top: 20px; right: 20px; cursor: pointer;"
+      onclick="close_level_panel()">&times;
+    </div>
+
+    <div
+      class=gallery id=level-gallery style="max-width: 940px; padding: 20px; margin: auto;"
+      onclick="close_level_panel_click_handler(event, this)"
+    >
+    </div>
+  </div>
+
+
+  <!-- Input panel, hidden by default -->
+  <div id=input-panel style="display: none;" onclick="close_input_panel_click_handler(event, this)">
+    <div
+      style="font-size: 200%; position: absolute; top: 20px; right: 20px; cursor: pointer;"
+      onclick="close_input_panel()">&times;
+    </div>
+    <div
+      style="
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        height: 100%; gap: .5em;
+      "
+      onclick="close_input_panel_click_handler(event, this)"
+    >
+      <div
+        id=input-panel-title
+        style="
+          margin: 15px; margin-bottom: 0; font-size: 200%; font-weight: bold; text-align: center;
+        "
+      ></div>
+      <div id=input-panel-error-message style="color: var(--red); min-height: 1.5em;"></div>
+      <input
+        type=text id=input-panel-field
+        style="
+          margin: 15px; margin-bottom: 2px; font-size: 200%; font-weight: bold; text-align: center;
+          border-radius: 6px;
+        "
+      ></input>
+      <div
+        class=rules
+        style="display: flex; flex-wrap: wrap; width: fit-content; margin-bottom: -10px;"
+        onmousedown="event.preventDefault()"
+      >
+        <div
+          class="rule-s pseudo-button"
+          onmousedown="event.preventDefault()" onclick="insert_special_symbol(this)">∧</div>
+        <div
+          class="rule-s pseudo-button"
+          onmousedown="event.preventDefault()" onclick="insert_special_symbol(this)">∨</div>
+        <div
+          class="rule-s pseudo-button"
+          onmousedown="event.preventDefault()" onclick="insert_special_symbol(this)">↔</div>
+        <div
+          class="rule-s pseudo-button"
+          onmousedown="event.preventDefault()" onclick="insert_special_symbol(this)">¬</div>
+        <div
+          class="rule-s pseudo-button"
+          onmousedown="event.preventDefault()" onclick="insert_special_symbol(this)">⊥</div>
+        <div
+          class="rule-s pseudo-button"
+          onmousedown="event.preventDefault()" onclick="insert_special_symbol(this)">→</div>
+      </div>
+      <div
+        class=rules
+        style="display: flex; flex-wrap: wrap; width: fit-content; margin-bottom: -10px;"
+        onmousedown="event.preventDefault()"
+      >
+        <div
+          class="rule-s pseudo-button"
+          onmousedown="event.preventDefault()" onclick="insert_special_symbol(this)">∀</div>
+        <div
+          class="rule-s pseudo-button"
+          onmousedown="event.preventDefault()" onclick="insert_special_symbol(this)">∃</div>
+        <div
+          class="rule-s pseudo-button"
+          onmousedown="event.preventDefault()" onclick="insert_special_symbol(this)">(</div>
+        <div
+          class="rule-s pseudo-button"
+          onmousedown="event.preventDefault()" onclick="insert_special_symbol(this)">)</div>
+        <div
+          class="rule-s pseudo-button"
+          onmousedown="event.preventDefault()" onclick="insert_special_symbol(this)">.</div>
+      </div>
+      <div
+        class=rules style="display: flex; flex-wrap: wrap; width: fit-content; margin-top: 0;"
+        onmousedown="event.preventDefault()"
+      >
+        <div
+          class="rule-s pseudo-button"
+          onmousedown="event.preventDefault()" onclick="insert_special_symbol(this)">m</div>
+        <div
+          class="rule-s pseudo-button"
+          onmousedown="event.preventDefault()" onclick="insert_special_symbol(this)">n</div>
+        <div
+          class="rule-s pseudo-button"
+          onmousedown="event.preventDefault()" onclick="insert_special_symbol(this)">o</div>
+        <div
+          class="rule-s pseudo-button"
+          onmousedown="event.preventDefault()" onclick="insert_special_symbol(this)">p</div>
+        <div
+          class="rule-s pseudo-button"
+          onmousedown="event.preventDefault()" onclick="insert_special_symbol(this)">q</div>
+      </div>
+      <div
+        class=rules style="display: flex; flex-wrap: wrap; width: fit-content; margin-top: 0;"
+        onmousedown="event.preventDefault()"
+      >
+        <div
+          class="rule-s pseudo-button"
+          onmousedown="event.preventDefault()" onclick="insert_special_symbol(this)">0</div>
+        <div
+          class="rule-s pseudo-button"
+          onmousedown="event.preventDefault()" onclick="insert_special_symbol(this)">↑</div>
+      </div>
+      <div
+        class=rules style="display: flex; flex-wrap: wrap; width: fit-content; margin-top: 0;"
+        onmousedown="event.preventDefault()"
+      >
+        <div
+          class="rule-s pseudo-button"
+          onmousedown="event.preventDefault()" onclick="insert_special_symbol(this)">+</div>
+        <div
+          class="rule-s pseudo-button"
+          onmousedown="event.preventDefault()" onclick="insert_special_symbol(this)">*</div>
+        <div
+          class="rule-s pseudo-button"
+          onmousedown="event.preventDefault()" onclick="insert_special_symbol(this)">=</div>
+        <div
+          class="rule-s pseudo-button"
+          onmousedown="event.preventDefault()" onclick="insert_special_symbol(this)">&lt;</div>
+      </div>
+      <div
+        id=input-panel-confirm class=pseudo-button
+        style="
+          background-color: var(--level-b); font-size: large; padding: 10px;
+          border: 3px solid var(--black); border-radius: 10px; margin-top: 20px;
+        "
+        onmousedown="event.preventDefault()"
+      >
+        Confirm
+      </div>
+    </div>
+  </div>
+
+
+  <h1 style="margin-bottom: 0">Natural deduction playground</h1>
+  <p class=center>
+  Fun for the whole family
+  </p>
+
+  <div
+    class="pseudo-button action"
+    style="
+      width: 30px; height: 30px; font-size: large; display: flex; justify-content: center;
+      align-items: center; position: fixed; top: 0; right: 0; margin: 30px;
+    "
+    onclick="open_help_panel()"
+  >?</div>
+
+  <div
+    class=box
+    style="
+      display: flex; gap: 1em; justify-content: space-around; margin-top: 1.2em;
+      flex-wrap: wrap;
+    "
+  >
+    <div class="action pseudo-button" onclick="open_level_panel()">Select exercise</div>
+    <div class="action pseudo-button" onclick="reset_current_exercise()">Reset current exercise</div>
+    <div style="display: flex; flex-direction: row; gap: 2em;">
+      <div class="action pseudo-button" onclick="import_data()">Import</div>
+      <div class="action pseudo-button" onclick="export_data()">Export</div>
+    </div>
+  </div>
+
+  <div
+    id=premises-mgmt-box class=box
+    style="background-color: var(--level-c); margin: 15px 0 15px 0; display: flex;
+           flex-direction: row; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 45px;"
+  >
+    <span>Premises:</span>
+    <div
+      style="display: inline-flex; flex-direction: row; align-items: center; gap: 5px;
+             flex-wrap: wrap;">
+      <div id=premises style="display: inline-flex; gap: 5px; width: fit-content; flex-wrap: wrap;">
+      </div>
+      <div
+        id="add-premise-button" class="expr pseudo-button" onclick="add_premise()"
+        style="
+          background-color: var(--lgreen);
+          color: color-mix(in srgb, hsl(120 30% 50%), hsl(240 10% 35%) 30%);
+          border-color: color-mix(in srgb, hsl(120 30% 50%), hsl(240 10% 17%) 30%);
+          border-radius: 10px; height: 38px; padding: 0 10px;"
+      >+</div>
+    </div>
+  </div>
+
+  <div
+    id=playground
+    style="display: flex; flex-direction: row; justify-content: space-between;
+           width: 100%; gap: 15px; margin-bottom: 10px; flex-wrap: wrap; height: 100%;
+           flex: 1 1 auto;"
+  >
+    <div
+      id="drag-box" class=box
+      style="overflow: auto; flex-grow: 1; min-width: 55%; justify-content: flex-end();"
+    >
+    <div
+      id="proof-top"
+      style="display: flex; justify-content: center; align-items: flex-end; min-width: fit-content;
+             height: 100%;"
+    >
+    <div
+      id=proof
+      style="text-align: center; align-items: center; display: flex; flex-direction: column;
+             justify-content: flex-end; overflow: auto; user-select: none;"
+    >
+      <div class="subtree" style="padding: 10px;">
+        <div class="hyps"></div>
+        <div class="sep"></div>
+        <div class="concl">
+          <div
+            id="focus"
+            class="expr pseudo-button" onclick="set_focus(this)"
+          >
+          </div>
+        </div>
+      </div>
+      </div>
+      </div>
+    </div>
+
+    <div id=actions-box class=box
+         style="display: flex; flex-direction: column; align-items: center;
+                gap: 10px; justify-content: flex-start; flex-basis: 35%; flex-grow: 1;"
+    >
+      <div id=done-message style="color: var(--green); font-size: x-large; visibility: hidden;">
+        Branch done
+      </div>
+
+      <div class=rules-box id=intro-rules>
+        Context-dependent rules:
+        <div class=rules id=intro-rules-holder style="display: flex; height: 3em;">
+        </div>
+      </div>
+
+      <div class=rules-box id=elim-rules>
+        Always applicable rules:
+        <div class=rules style="display: flex; flex-wrap: wrap; width: fit-content;">
+          <div class="rule pseudo-button" onclick='apply_rule_with_arg("↔-elim-l", "Right branch of the iff:", iff_elim_l)'>↔-elim-l</div>
+          <div class="rule pseudo-button" onclick='apply_rule_with_arg("↔-elim-r", "Left branch of the iff:", iff_elim_r)'>↔-elim-r</div>
+          <div class="rule pseudo-button" onclick='apply_rule_with_arg("∧-elim-l", "Right branch of the and:", and_elim_l)'>∧-elim-l</div>
+          <div class="rule pseudo-button" onclick='apply_rule_with_arg("∧-elim-r", "Left branch of the and:", and_elim_r)'>∧-elim-r</div>
+          <div class="rule pseudo-button" onclick='apply_rule_with_arg("∨-elim", "Or hypothesis:", or_elim, validate_or_input)'>∨-elim</div>
+          <div class="rule pseudo-button" onclick='apply_rule("DNE (classical)", dne)'>DNE</div>
+          <div class="rule pseudo-button" onclick='apply_rule("⊥-elim", false_elim)'>⊥-elim/RAA</div>
+          <div class="rule pseudo-button" onclick='apply_rule_with_arg("→-elim", "Implication condition:", impl_elim)'>→-elim</div>
+          <!-- TODO doublecheck, mind bound occurrences -->
+          <div class="rule pseudo-button" onclick='apply_rule("∀-elim", impl_elim)'>∀-elim</div>
+          <div class="rule pseudo-button" onclick='apply_rule("∃-elim", exists_elim)'>∃-elim</div>
+        </div>
+      </div>
+
+      <div class=rules-box id=special-rules>
+        Other:
+        <div class=rules style="display: flex; flex-wrap: wrap; width: fit-content;">
+          <div class="rule pseudo-button" onclick="apply_clear_above()">clear above</div>
+          <div id="as-premise-button" class="rule pseudo-button" onclick="apply_as_premise()">as premise</div>
+          <div id="change-button" class="rule pseudo-button" onclick="apply_change()">change</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

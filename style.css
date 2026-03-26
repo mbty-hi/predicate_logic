@@ -1,0 +1,412 @@
+/* VARIABLES */
+:root {
+  --black    : hsl(240 10%  5%);
+  --dark     : hsl(240 10% 14%);
+  --level-a  : hsl(240 10% 20%);
+  --level-b  : hsl(240 10% 30%);
+  --level-c  : hsl(240 10% 40%);
+  --white    : hsl(240 15% 99%);
+  --ghost    : hsl(240  5% 60%);
+  --link     : hsl(240 38% 72%);
+  --link-hv  : hsl(15  65% 72%);
+  --link-vs  : hsl(240 30% 55%);
+  --emph     : hsl(15  90% 70%);
+  --red      : hsl(0   50% 50%);
+  --yellow   : hsl(60  50% 50%);
+  --green    : hsl(120 30% 50%);
+  --cyan     : hsl(180 30% 50%);
+  --blue     : hsl(240 40% 58%);
+  --magenta  : hsl(300 50% 50%);
+  --lred     : hsl(0   50% 70%);
+  --lyellow  : hsl(60  50% 70%);
+  --lgreen   : hsl(120 30% 70%);
+  --lcyan    : hsl(180 30% 70%);
+  --lblue    : hsl(240 40% 78%);
+  --lmagenta : hsl(300 50% 70%);
+}
+
+@font-face {
+  font-family: "aile";
+  src: url("fonts/mbty_Iosevka-Aile.woff2") format("woff2");
+}
+
+
+/* GENERAL */
+a {
+  color: var(--link);
+  font-weight: bold;
+}
+
+header a {
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--link-hv);
+}
+
+a:visited {
+  color: var(--link-vs);
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  background-color: var(--level-a);
+  color: var(--white);
+  font-family: aile, sans-serif;
+  margin: 0;
+  height: 100%;
+}
+
+hr {
+  margin: 40px 0;
+  border: none;
+  height: 2px;
+  background-color: var(--level-c);
+}
+
+.anchor {
+  color: var(--level-c);
+  text-decoration: none;
+}
+
+.anchor:hover {
+  color: var(--ghost);
+}
+
+@media screen and (min-width: 650px) {
+  p {
+    text-align: justify;
+  }
+}
+
+h1, h2 {
+  text-align: center;
+}
+
+h1 {
+  margin-top: 10px;
+}
+
+@media screen and (max-width: 650px) {
+  h1 {
+    margin: 0;
+    margin-bottom: 10px;
+  }
+}
+
+/* MAIN */
+#content {
+  margin: auto;
+  max-width: 1140px;
+  padding: 20px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+@media screen and (max-width: 650px) {
+  #content {
+    padding: 5px;
+  }
+}
+
+/* HELPERS */
+p.center {
+  text-align: center;
+}
+
+.center {
+  display: block;
+  margin: auto;
+}
+
+/* GALLERY */
+@media screen and (min-width: 1001px) {
+  .gallery {
+    display: flex;
+    align-content: flex-start;
+    justify-content: space-evenly;
+    flex-wrap: wrap;
+  }
+
+  .gallery-i-wish-i-didnt-have-to-resort-to-this-dirty-hack {
+    width: 196px;
+    height: 0;
+  }
+
+  .gallery-item {
+    background-color: var(--dark);
+    color: var(--white);
+    font-weight: normal;
+    height: 150px;
+    margin: 10px;
+    overflow: auto;
+    padding: 13px;
+    width: 150px;
+    text-decoration: none;
+  }
+
+  .gallery-item:hover {
+    color: var(--white);
+    background-color: var(--level-b);
+  }
+
+  .gallery-item > hr {
+    margin: 7px 0;
+    border: none;
+    height: 1px;
+    background-color: var(--white);
+  }
+
+  .gallery-title {
+    font-weight: bold;
+  }
+}
+
+@media screen and (max-width: 1000px) {
+  .gallery {
+    display: block;
+  }
+
+  .gallery > div {
+    display: block;
+  }
+  .gallery-item {
+    display: block;
+  }
+
+  .gallery > div > div {
+    display: inline;
+  }
+  .gallery > a > div {
+    display: inline;
+  }
+
+  .gallery-item {
+    background-color: var(--dark);
+    color: var(--white);
+    font-weight: normal;
+    display: flex !important;
+    align-items: center;
+    padding: 8px;
+    gap: 10px;
+    margin: 6px;
+    width: auto;
+    height: 30px;
+    text-decoration: none;
+  }
+
+  .gallery-title {
+    font-weight: bold;
+  }
+
+  .gallery-title::after {
+    content: ": ";
+  }
+
+  .gallery-item > hr {
+    display: none;
+  }
+
+  .gallery-item:hover {
+    color: var(--white);
+    background-color: var(--level-b);
+  }
+}
+
+/* Custom rules for logic playground */
+.box {
+  border: 4px solid var(--black);
+  border-radius: 10px;
+  background-color: var(--level-c);
+  padding: 10px;
+}
+
+.action {
+  outline: 3px solid var(--black);
+  border-radius: 10px;
+  background-color: var(--level-b);
+  padding: 5px;
+  text-align: center;
+}
+
+.rule, .rule-s {
+  outline: 3px solid var(--black);
+  border-radius: 10px;
+  background-color: var(--level-b);
+  padding: 5px;
+  width: 6em;
+  text-align: left;
+  margin: 10px;
+}
+.rule-s {
+  width: 2em;
+  text-align: center;
+  font-size: large;
+}
+
+.rules {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 .2em;
+}
+
+.rules-box {
+  text-align: center;
+}
+
+.expr {
+  border: 2px solid var(--black);
+  border-radius: 10px;
+  background-color: var(--level-a);
+  padding: 3px;
+  display: inline-flex;
+  align-items: center;
+  height: fit-content;
+}
+
+.expr > .expr {
+  color: var(--ghost);
+}
+
+.concl > .expr, #premises > .expr, .hyps > .expr {
+  padding: 0 20px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+}
+.subtree > .expr {
+  margin: 0 20px;
+}
+
+.subtree, .hyps {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.hyps {
+  gap: 20px;
+}
+
+.hyps {
+  align-items: flex-end;
+  flex-direction: row;
+}
+
+.sep {
+  gap: 3px;
+  margin: 6px 0;
+  padding: 0 6px;
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  background-color: var(--black);
+  border-radius: 6px;
+  max-height: .6em;
+}
+
+.sep-bar {
+  max-height: 4px;
+  border-radius: 4px;
+  flex: 1;
+}
+
+.sep-name {
+  font-size: x-small;
+  width: fit-content;
+  color: var(--ghost);
+  font-weight: bold;
+}
+
+#focus {
+  filter: none !important;
+  cursor: initial !important;
+  outline: 3px solid var(--lblue);
+}
+
+.remove-cross {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--lred);
+  border: 2px solid var(--red);
+  border-radius: 50%;
+  color: var(--red);
+  width: 1em; height: 1em;
+  font-size: small;
+}
+
+#input-panel, #level-panel, #help-panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  height: 100%;
+  background-color: color-mix(in oklab, var(--black), transparent 10%);
+  color: var(--white);
+  z-index: 1;
+  padding: 25px;
+  overflow-y: scroll;
+  overflow-x: hidden;
+}
+
+.subtree {
+  display: flex;
+  flex-direction: column;
+}
+
+#input-panel-title {
+  font-size: x-large;
+}
+
+#input-panel-field {
+  max-width: 90%;
+  background-color: var(--black);
+  border: 2px solid var(--level-a);
+  color: var(--white);
+}
+#input-panel-field:focus {
+  outline: 2px solid var(--white);
+}
+
+.pseudo-button:hover {
+  filter: brightness(1.4);
+  cursor: pointer;
+}
+
+.gallery-item {
+  background-color: var(--level-a);
+  border: 4px solid var(--black);
+}
+
+.gallery-i-wish-i-didnt-have-to-resort-to-this-dirty-hack {
+  width: 204px;
+}
+
+.gallery-item:hover {
+  cursor: pointer;
+}
+
+.known {
+  background-color: color-mix(in srgb, hsl(120 30% 50%), hsl(240 10% 35%) 50%) !important;
+}
+
+.known-cause-for-node {
+  border-color: var(--green);
+}
+
+.known-cause-for-premise {
+  border-color: var(--green);
+}
+
+.global-premise {
+  background-color: color-mix(in oklab, var(--red), var(--level-c) 50%);
+}
